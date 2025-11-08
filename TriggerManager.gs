@@ -9,10 +9,21 @@ function createTrigger() {
     // 既存のトリガーを削除
     deleteExistingTriggers('createTrigger');
 
-    // 投稿漏れの検出（実行前にチェック）
-    Logger.log('--- 投稿漏れをチェック中 ---');
-    detectAndMarkMissedTweets();
-    Logger.log('');
+    // 投稿漏れの検出と自動リスケジュール（実行前にチェック）
+    if (CONFIG.AUTO_RESCHEDULE.ENABLED) {
+      Logger.log('--- 投稿失敗の自動検出と再スケジュール ---');
+      autoDetectAndReschedule({
+        autoReschedule: CONFIG.AUTO_RESCHEDULE.ENABLED,
+        startDaysFromNow: CONFIG.AUTO_RESCHEDULE.START_DAYS_FROM_NOW,
+        intervalDays: CONFIG.AUTO_RESCHEDULE.INTERVAL_DAYS,
+        notifyOnFailure: CONFIG.AUTO_RESCHEDULE.NOTIFY_ON_FAILURE
+      });
+      Logger.log('');
+    } else {
+      Logger.log('--- 投稿漏れをチェック中（自動リスケジュール無効）---');
+      detectAndMarkMissedTweets();
+      Logger.log('');
+    }
 
     // ツイート投稿を実行
     postScheduledTweets();

@@ -164,3 +164,43 @@ function testSpreadsheetUpgrade() {
   Logger.log('\n=== スプレッドシート構造アップグレードテスト完了 ===');
 }
 
+/**
+ * 自動リスケジュール機能のテスト
+ */
+function testAutoReschedule() {
+  Logger.log('=== 自動リスケジュール機能テスト開始 ===\n');
+  
+  Logger.log('--- 現在のステータス確認 ---');
+  showAutoRescheduleStatus();
+  Logger.log('');
+  
+  Logger.log('--- 失敗検出と自動リスケジュール（検出のみモード）---');
+  const result = autoDetectAndReschedule({ 
+    autoReschedule: false  // 検出のみ、再スケジュールは実行しない
+  });
+  
+  Logger.log('\n【テスト結果】');
+  Logger.log(`  投稿漏れ検出: ${result.missedCount}件`);
+  Logger.log(`  失敗ツイート: ${result.failedCount}件`);
+  Logger.log(`  再スケジュール: ${result.rescheduled ? '実行済み' : '未実行（テストモード）'}`);
+  Logger.log(`  メッセージ: ${result.message}`);
+  
+  if (result.failedCount > 0) {
+    Logger.log('\n--- 実際に自動リスケジュールを実行する場合 ---');
+    Logger.log('以下のコマンドを使用してください:');
+    Logger.log('');
+    Logger.log('// デフォルト設定で実行');
+    Logger.log('autoDetectAndReschedule();');
+    Logger.log('');
+    Logger.log('// カスタム設定で実行');
+    Logger.log('autoDetectAndReschedule({');
+    Logger.log('  autoReschedule: true,');
+    Logger.log('  startDaysFromNow: 2,');
+    Logger.log('  intervalDays: 1');
+    Logger.log('});');
+  }
+  
+  Logger.log('\n=== 自動リスケジュール機能テスト完了 ===');
+}
+
+

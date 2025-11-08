@@ -10,6 +10,7 @@ Google Apps Script(GAS)を使用したX(旧Twitter)自動投稿ツール
 
 - ✅ **スケジュール投稿**: 指定した日時に自動でツイート
 - 🔄 **自動リトライ**: 失敗時に最大3回まで自動リトライ（指数バックオフ方式）
+- 🤖 **自動リスケジュール**: 投稿失敗を検出して自動的に再スケジュール
 - 📊 **詳細なステータス管理**: 投稿成功/失敗/リトライ中などの状態を追跡
 - ⚠️ **投稿漏れ検出**: 予定時刻を過ぎているのに投稿されていないツイートを自動検出
 - 📅 **柔軟な再スケジュール**: 失敗ツイートを1日ずつずらして再配置
@@ -28,6 +29,7 @@ Auto-PostTool-of-X/
 ├── TriggerManager.gs           # トリガー管理
 ├── FailedTweetManager.gs       # 失敗ツイート管理
 ├── Rescheduler.gs              # 再スケジュール機能
+├── AutoRescheduler.gs          # 自動リスケジュール機能（新規）
 ├── MissedTweetDetector.gs      # 投稿漏れ検出
 ├── Utils.gs                    # ユーティリティ関数
 ├── Tests.gs                    # テスト関数
@@ -149,6 +151,20 @@ listFailedTweets();
 detectAndMarkMissedTweets();
 ```
 
+#### 重要: 再スケジュール時の動作
+
+再スケジュール機能を実行すると、失敗したツイートだけでなく、**その後の投稿待ちツイートもすべて自動的にずらされます**。これにより、スケジュールの重複を防ぎます。
+
+例：
+- 11/10、11/11、11/12に投稿予定のツイートがあり
+- 11/10のツイートが失敗した場合
+- `rescheduleFailedTweets()` を実行すると：
+  - 失敗ツイート: 11/10 → 11/11 に移動
+  - 元の11/11のツイート → 11/12 に移動
+  - 元の11/12のツイート → 11/13 に移動
+
+将来のツイートをずらしたくない場合は、`shiftFutureTweets: false` オプションを使用してください。
+
 #### 失敗ツイートの対処
 
 **パターン1: 今すぐ投稿**
@@ -159,6 +175,7 @@ postFailedTweetsNow(5); // 最大5件を今すぐ投稿 (FailedTweetManager.gs)
 **パターン2: 1日ずつ再スケジュール**
 ```javascript
 // 明日から1日ずつ (Rescheduler.gs)
+// ⚠️ 注意: 失敗ツイートの後にある投稿待ちツイートも自動的にずらされます
 rescheduleFailedTweets();
 
 // 3日後から2日間隔で (Rescheduler.gs)
@@ -178,6 +195,12 @@ rescheduleFailedTweetsAdvanced({
 rescheduleFailedTweetsAdvanced({ 
   intervalDays: 1, 
   sameTimeAsOriginal: true 
+});
+
+// 将来のツイートをずらさない（失敗ツイートのみ再スケジュール）
+rescheduleFailedTweetsAdvanced({ 
+  intervalDays: 1, 
+  shiftFutureTweets: false 
 });
 ```
 
@@ -208,6 +231,55 @@ main();
 
 // 全体テスト (Tests.gs)
 testAll();
+
+// 自動リスケジュール機能のテスト (Tests.gs)
+testAutoReschedule();
+
+// 自動リスケジュール機能のステータス確認 (AutoRescheduler.gs)
+showAutoRescheduleStatus();
+```
+
+### 自動リスケジュール機能
+
+このツールは、投稿失敗を自動的に検出して再スケジュールする機能を備えています。
+
+#### 自動で実行される処理
+
+トリガー実行時（毎日設定時刻）に自動で以下を実行：
+
+1. **投稿漏れの検出**: 予定時刻を過ぎているのに投稿されていないツイートを「投稿失敗」として検出
+2. **失敗ツイートの確認**: 失敗ステータスのツイートを収集
+3. **自動再スケジュール**: 失敗ツイートを設定に基づいて自動的に再配置
+
+#### 手動で実行する場合
+
+```javascript
+// デフォルト設定で実行 (AutoRescheduler.gs)
+autoDetectAndReschedule();
+
+// カスタム設定で実行
+autoDetectAndReschedule({
+  autoReschedule: true,      // 自動再スケジュール有効
+  startDaysFromNow: 2,       // 2日後から開始
+  intervalDays: 1,           // 1日間隔
+  notifyOnFailure: true      // 失敗時に通知
+});
+
+// 検出のみ（再スケジュールしない）
+autoDetectAndReschedule({ autoReschedule: false });
+```
+
+#### 設定の変更
+
+`Config.gs`の`AUTO_RESCHEDULE`セクションで設定を変更できます：
+
+```javascript
+AUTO_RESCHEDULE: {
+  ENABLED: true,              // false にすると自動リスケジュール無効
+  START_DAYS_FROM_NOW: 1,     // 失敗ツイートを何日後から再スケジュールするか
+  INTERVAL_DAYS: 1,           // 各失敗ツイート間の間隔（日数）
+  NOTIFY_ON_FAILURE: true     // 失敗時にログに通知を出力
+}
 ```
 
 ## ⚙️ 設定のカスタマイズ
@@ -226,6 +298,12 @@ CONFIG = {
     MAX_ATTEMPTS: 3,                             // 最大リトライ回数
     INITIAL_DELAY: 1000,                         // 初回リトライ待機時間(ms)
     BACKOFF_MULTIPLIER: 2                        // リトライ間隔の倍率
+  },
+  AUTO_RESCHEDULE: {
+    ENABLED: true,                               // 自動リスケジュール有効化
+    START_DAYS_FROM_NOW: 1,                      // 何日後から再スケジュールするか
+    INTERVAL_DAYS: 1,                            // 各失敗ツイート間の間隔（日数）
+    NOTIFY_ON_FAILURE: true                      // 失敗時に通知を行うか
   }
 }
 ```

@@ -42,10 +42,16 @@ const CONFIG = {
     INITIAL_DELAY: 1000,       // 初回リトライまでの待機時間(ミリ秒)
     BACKOFF_MULTIPLIER: 2      // リトライごとの待機時間の倍率
   },
+  AUTO_RESCHEDULE: {
+    ENABLED: true,             // 自動リスケジュール機能を有効にするか
+    START_DAYS_FROM_NOW: 1,    // 失敗ツイートを何日後から再スケジュールするか
+    INTERVAL_DAYS: 1,          // 各失敗ツイート間の間隔（日数）
+    NOTIFY_ON_FAILURE: true    // 失敗時に通知を行うか
+  },
   TWEET_PREFIX: 'チャレラ！開けロイト市警だ！',
   YEARS_TO_SCHEDULE: 14,
   TRIGGER_TIME: {
     HOUR: 19,
-    MINUTE: 30
+    MINUTE: 29
   }
 };
