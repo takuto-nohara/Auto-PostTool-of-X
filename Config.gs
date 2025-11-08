@@ -21,8 +21,8 @@ const CONFIG = {
     return PropertiesService.getScriptProperties().getProperty('CLIENT_SECRET') || '{CLIENT_SECRET}';
   },
   SHEET_NAMES: {
-    SCHEDULED: '予約',
-    PHOTO_LINKS: '写真リンク'
+    SCHEDULED: '予約',      // スケジュール投稿シート（投稿日時|投稿内容|状態|エラーメッセージ|リトライ回数）
+    PHOTO_LINKS: '写真リンク' // 写真リンクシート（番号|詳細|リンク）
   },
   COLUMNS: {
     SCHEDULED_TIME: 0,  // 投稿日時（既存）

@@ -61,7 +61,7 @@ Auto-PostTool-of-X/
 →「スクリプト プロパティ」
 →「CLIENT_ID」と「CLIENT_SECRET」を追加
 
-// 方法2: コードから設定
+// 方法2: コードから設定 (Utils.gs)
 setEnvironmentVariables(); // 実行後、関数内の値は削除すること
 ```
 
@@ -71,7 +71,7 @@ setEnvironmentVariables(); // 実行後、関数内の値は削除すること
 既存の「投稿日時、投稿内容、状態」の3列構造を維持しながら、新しい列を追加します：
 
 ```javascript
-// 既存データを保持したまま構造をアップグレード
+// 既存データを保持したまま構造をアップグレード (SpreadsheetUtils.gs)
 upgradeSpreadsheetStructure();
 ```
 
@@ -82,7 +82,7 @@ upgradeSpreadsheetStructure();
 
 #### 新規作成の場合
 ```javascript
-initializeSpreadsheetHeaders();
+initializeSpreadsheetHeaders(); // (SpreadsheetUtils.gs)
 ```
 
 **最終的なヘッダー構造:**
@@ -92,21 +92,30 @@ initializeSpreadsheetHeaders();
 **注意:** 既存の3列のヘッダー名（投稿日時、投稿内容、状態）は変更されません。
 
 #### 「写真リンク」シートの作成
-| No | 名前 | リンク |
-|----|------|--------|
-| 1  | 写真1 | https://... |
+既存の構造を使用してください：
+
+| 番号 | 詳細 | リンク |
+|------|------|--------|
+| 1 | 一家 | https://twitter.com/Your_ID/status/... |
+| 2 | 二階堂 | https://twitter.com/Your_ID/status/... |
+| 3 | 桧森 | https://twitter.com/Your_ID/status/... |
+
+**注意:** 
+- ヘッダー行は「番号」「詳細」「リンク」の3列構造
+- システムは3列目（リンク列）からランダムに選択します
+- 既存のデータ構造は変更しないでください
 
 ### 5. Twitter認証
 
 ```javascript
-main(); // ログに認証URLが表示される
+main(); // ログに認証URLが表示される (OAuth2.gs)
 ```
 表示されたURLを開いて認証を完了
 
 ### 6. トリガーの設定
 
 ```javascript
-createTrigger(); // 翌日19:30に自動実行されるトリガーを作成
+createTrigger(); // 翌日19:30に自動実行されるトリガーを作成 (TriggerManager.gs)
 ```
 
 ## 📖 使い方
@@ -130,13 +139,13 @@ createTrigger(); // 翌日19:30に自動実行されるトリガーを作成
 
 #### 失敗状況の確認
 ```javascript
-// 全体の健全性チェック
+// 全体の健全性チェック (MissedTweetDetector.gs)
 healthCheck();
 
-// 失敗ツイートの一覧表示
+// 失敗ツイートの一覧表示 (FailedTweetManager.gs)
 listFailedTweets();
 
-// 投稿漏れを検出してマーク
+// 投稿漏れを検出してマーク (MissedTweetDetector.gs)
 detectAndMarkMissedTweets();
 ```
 
@@ -144,28 +153,28 @@ detectAndMarkMissedTweets();
 
 **パターン1: 今すぐ投稿**
 ```javascript
-postFailedTweetsNow(5); // 最大5件を今すぐ投稿
+postFailedTweetsNow(5); // 最大5件を今すぐ投稿 (FailedTweetManager.gs)
 ```
 
 **パターン2: 1日ずつ再スケジュール**
 ```javascript
-// 明日から1日ずつ
+// 明日から1日ずつ (Rescheduler.gs)
 rescheduleFailedTweets();
 
-// 3日後から2日間隔で
+// 3日後から2日間隔で (Rescheduler.gs)
 rescheduleFailedTweets(3, 2);
 ```
 
 **パターン3: 詳細設定で再スケジュール**
 ```javascript
-// 特定の日時から開始
+// 特定の日時から開始 (Rescheduler.gs)
 var startDate = new Date("2025-11-15 19:30:00");
 rescheduleFailedTweetsAdvanced({ 
   startDate: startDate, 
   intervalDays: 1 
 });
 
-// 元の時刻を保持
+// 元の時刻を保持 (Rescheduler.gs)
 rescheduleFailedTweetsAdvanced({ 
   intervalDays: 1, 
   sameTimeAsOriginal: true 
@@ -174,27 +183,30 @@ rescheduleFailedTweetsAdvanced({
 
 **パターン4: 手動リトライ**
 ```javascript
-retryFailedTweets(); // すべての失敗ツイートをリトライ
+retryFailedTweets(); // すべての失敗ツイートをリトライ (FailedTweetManager.gs)
 ```
 
 **パターン5: ステータスリセット**
 ```javascript
-resetFailedTweets(); // ステータスを「投稿待ち」に戻す
+resetFailedTweets(); // ステータスを「投稿待ち」に戻す (FailedTweetManager.gs)
 ```
 
 ### 便利な関数
 
 ```javascript
-// 使い方ガイドを表示
+// 使い方ガイドを表示 (Utils.gs)
 showFailedTweetManagementGuide();
 
-// 環境変数チェック
+// スプレッドシート構造チェック (Utils.gs)
+checkSpreadsheetStructure();
+
+// 環境変数チェック (Utils.gs)
 checkEnvironmentVariables();
 
-// 認証状態チェック
+// 認証状態チェック (OAuth2.gs)
 main();
 
-// 全体テスト
+// 全体テスト (Tests.gs)
 testAll();
 ```
 
@@ -232,13 +244,18 @@ CONFIG = {
 
 ### 認証エラーが出る
 ```javascript
-main(); // 認証URLを再取得
+main(); // 認証URLを再取得 (OAuth2.gs)
 ```
 
 ### 投稿が実行されない
 ```javascript
-healthCheck(); // 全体の状況を確認
-detectAndMarkMissedTweets(); // 投稿漏れを検出
+healthCheck(); // 全体の状況を確認 (MissedTweetDetector.gs)
+detectAndMarkMissedTweets(); // 投稿漏れを検出 (MissedTweetDetector.gs)
+```
+
+### スプレッドシートの構造を確認したい
+```javascript
+checkSpreadsheetStructure(); // 構造の診断と問題点を表示 (Utils.gs)
 ```
 
 ### エラーメッセージの意味

@@ -127,3 +127,107 @@ function showFailedTweetManagementGuide() {
   Logger.log('5. 多数の場合: rescheduleFailedTweets() で分散投稿');
   Logger.log('═══════════════════════════════════════════════════════════');
 }
+
+/**
+ * スプレッドシートの構造を確認して表示する
+ */
+function checkSpreadsheetStructure() {
+  Logger.log('╔═══════════════════════════════════════════════════════════╗');
+  Logger.log('║        スプレッドシート構造の確認                         ║');
+  Logger.log('╚═══════════════════════════════════════════════════════════╝');
+  Logger.log('');
+  
+  // 予約シートの確認
+  const scheduledSheet = getSheet(CONFIG.SHEET_NAMES.SCHEDULED);
+  if (scheduledSheet) {
+    Logger.log('【予約シート】');
+    const lastRow = scheduledSheet.getLastRow();
+    const lastCol = scheduledSheet.getLastColumn();
+    const headers = scheduledSheet.getRange(1, 1, 1, Math.max(lastCol, 5)).getValues()[0];
+    
+    Logger.log(`  シート名: ${CONFIG.SHEET_NAMES.SCHEDULED}`);
+    Logger.log(`  データ行数: ${lastRow}行`);
+    Logger.log(`  列数: ${lastCol}列`);
+    Logger.log(`  ヘッダー:`);
+    for (let i = 0; i < Math.min(headers.length, 5); i++) {
+      const header = headers[i] || '(空白)';
+      Logger.log(`    ${i + 1}列目: ${header}`);
+    }
+    
+    // 期待される構造と比較
+    const expectedHeaders = ['投稿日時', '投稿内容', '状態', 'エラーメッセージ', 'リトライ回数'];
+    let structureOk = true;
+    for (let i = 0; i < 3; i++) {
+      if (!headers[i]) {
+        structureOk = false;
+        Logger.log(`  ⚠️ 警告: ${i + 1}列目（${expectedHeaders[i]}）が空です`);
+      }
+    }
+    
+    if (lastCol < 5) {
+      Logger.log(`  ℹ️ 情報: 列数が${lastCol}列です。upgradeSpreadsheetStructure()で5列に拡張できます`);
+    } else if (structureOk) {
+      Logger.log(`  ✅ 構造は正常です`);
+    }
+  } else {
+    Logger.log('【予約シート】');
+    Logger.log('  ❌ エラー: シートが見つかりません');
+  }
+  
+  Logger.log('');
+  
+  // 写真リンクシートの確認
+  const photoLinksSheet = getSheet(CONFIG.SHEET_NAMES.PHOTO_LINKS);
+  if (photoLinksSheet) {
+    Logger.log('【写真リンクシート】');
+    const lastRow = photoLinksSheet.getLastRow();
+    const lastCol = photoLinksSheet.getLastColumn();
+    const headers = photoLinksSheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    
+    Logger.log(`  シート名: ${CONFIG.SHEET_NAMES.PHOTO_LINKS}`);
+    Logger.log(`  データ行数: ${lastRow}行`);
+    Logger.log(`  列数: ${lastCol}列`);
+    Logger.log(`  ヘッダー:`);
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i] || '(空白)';
+      Logger.log(`    ${i + 1}列目: ${header}`);
+    }
+    
+    // 3列目（リンク列）のデータ数を確認
+    if (lastRow > 1) {
+      const linksData = photoLinksSheet.getRange(2, 3, lastRow - 1, 1).getValues();
+      const validLinks = linksData.filter(row => row[0] && row[0] !== '').length;
+      Logger.log(`  有効なリンク数: ${validLinks}件`);
+      
+      if (validLinks === 0) {
+        Logger.log('  ⚠️ 警告: 有効なリンクがありません');
+      } else {
+        Logger.log('  ✅ リンクデータは正常です');
+      }
+    } else {
+      Logger.log('  ⚠️ 警告: データ行がありません（ヘッダーのみ）');
+    }
+    
+    // 期待される構造の説明
+    if (lastCol !== 3) {
+      Logger.log('  ℹ️ 期待される構造: 番号 | 詳細 | リンク（3列）');
+    }
+  } else {
+    Logger.log('【写真リンクシート】');
+    Logger.log('  ❌ エラー: シートが見つかりません');
+    Logger.log('  ℹ️ シート名「写真リンク」で作成してください');
+  }
+  
+  Logger.log('');
+  Logger.log('═══════════════════════════════════════════════════════════');
+  Logger.log('構造に問題がある場合:');
+  Logger.log('');
+  Logger.log('1. 予約シートを拡張する場合:');
+  Logger.log('   upgradeSpreadsheetStructure();');
+  Logger.log('');
+  Logger.log('2. 写真リンクシートを作成する場合:');
+  Logger.log('   手動で「写真リンク」シートを作成し、');
+  Logger.log('   ヘッダーを「番号 | 詳細 | リンク」に設定してください');
+  Logger.log('═══════════════════════════════════════════════════════════');
+}
+

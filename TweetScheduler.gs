@@ -103,8 +103,9 @@ function getRandomTweetContent(linksData) {
   const allLinks = [];
 
   // ヘッダー行をスキップしてリンクを収集
+  // 写真リンクシートの構造: 番号 | 詳細 | リンク
   for (let i = 1; i < linksData.length; i++) {
-    const link = linksData[i][2]; // 3列目がリンク
+    const link = linksData[i][2]; // 3列目（リンク列）
     if (link) {
       allLinks.push(link);
     }
