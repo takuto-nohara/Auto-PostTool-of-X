@@ -52,6 +52,7 @@ const CONFIG = {
   YEARS_TO_SCHEDULE: 14,
   TRIGGER_TIME: {
     HOUR: 19,
-    MINUTE: 29
+    MINUTE: 29,
+    MARGIN_MINUTES: 5          // トリガー設定時の余裕時間（分）
   }
 };
