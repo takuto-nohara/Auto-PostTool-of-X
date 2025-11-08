@@ -51,17 +51,20 @@ function createTrigger() {
     if (now > triggerDay) {
       // 指定時刻を過ぎている → 翌日
       triggerDay.setDate(triggerDay.getDate() + 1);
-      const minutesPassed = Math.floor((now - new Date(now.getFullYear(), now.getMonth(), now.getDate(), CONFIG.TRIGGER_TIME.HOUR, CONFIG.TRIGGER_TIME.MINUTE)) / (1000 * 60));
-      Logger.log(`📅 投稿時刻を${minutesPassed}分過ぎているため、翌日にトリガーを設定します`);
+      const timePassed = now - new Date(now.getFullYear(), now.getMonth(), now.getDate(), CONFIG.TRIGGER_TIME.HOUR, CONFIG.TRIGGER_TIME.MINUTE);
+      const timePassedStr = formatTimeDuration(timePassed);
+      Logger.log(`📅 投稿時刻を${timePassedStr}過ぎているため、翌日にトリガーを設定します`);
     } else if (now < triggerDayWithMargin) {
       // マージン時刻より前 → 当日
-      const minutesUntilTrigger = Math.floor((triggerDay - now) / (1000 * 60));
-      Logger.log(`📅 投稿時刻まで${minutesUntilTrigger}分あるため、本日にトリガーを設定します`);
+      const timeUntilTrigger = triggerDay - now;
+      const timeUntilStr = formatTimeDuration(timeUntilTrigger);
+      Logger.log(`📅 投稿時刻まで${timeUntilStr}あるため、本日にトリガーを設定します`);
     } else {
       // マージン時刻～指定時刻の間 → 翌日（安全のため）
       triggerDay.setDate(triggerDay.getDate() + 1);
-      const minutesUntilOriginal = Math.floor((new Date(now.getFullYear(), now.getMonth(), now.getDate(), CONFIG.TRIGGER_TIME.HOUR, CONFIG.TRIGGER_TIME.MINUTE) - now) / (1000 * 60));
-      Logger.log(`📅 投稿時刻まで${minutesUntilOriginal}分（マージン${marginMinutes}分以内）のため、翌日にトリガーを設定します`);
+      const timeUntilOriginal = new Date(now.getFullYear(), now.getMonth(), now.getDate(), CONFIG.TRIGGER_TIME.HOUR, CONFIG.TRIGGER_TIME.MINUTE) - now;
+      const timeUntilStr = formatTimeDuration(timeUntilOriginal);
+      Logger.log(`📅 投稿時刻まで${timeUntilStr}（マージン${marginMinutes}分以内）のため、翌日にトリガーを設定します`);
     }
 
     // 新しいトリガーを作成
@@ -78,12 +81,32 @@ function createTrigger() {
     
     // 実行までの時間を計算して表示
     const timeUntilTrigger = triggerDay - now;
-    const hoursUntil = Math.floor(timeUntilTrigger / (1000 * 60 * 60));
-    const minutesUntil = Math.floor((timeUntilTrigger % (1000 * 60 * 60)) / (1000 * 60));
-    Logger.log(`⏰ 次回実行まで: ${hoursUntil}時間${minutesUntil}分`);
+    const timeUntilStr = formatTimeDuration(timeUntilTrigger);
+    Logger.log(`⏰ 次回実行まで: ${timeUntilStr}`);
   } catch (error) {
     Logger.log(`トリガー作成中にエラーが発生しました: ${error.message}`);
   }
+}
+
+/**
+ * ミリ秒を日時分秒の文字列に変換する
+ * @param {number} milliseconds - ミリ秒
+ * @returns {string} フォーマットされた時間文字列
+ */
+function formatTimeDuration(milliseconds) {
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const days = Math.floor(totalSeconds / (24 * 60 * 60));
+  const hours = Math.floor((totalSeconds % (24 * 60 * 60)) / (60 * 60));
+  const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
+  const seconds = totalSeconds % 60;
+  
+  const parts = [];
+  if (days > 0) parts.push(`${days}日`);
+  if (hours > 0) parts.push(`${hours}時間`);
+  if (minutes > 0) parts.push(`${minutes}分`);
+  if (seconds > 0 || parts.length === 0) parts.push(`${seconds}秒`);
+  
+  return parts.join('');
 }
 
 /**
