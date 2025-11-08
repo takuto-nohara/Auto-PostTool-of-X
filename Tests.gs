@@ -129,3 +129,38 @@ function testFailedTweetManagement() {
   
   Logger.log('\n=== 失敗ツイート管理機能テスト完了 ===');
 }
+
+/**
+ * スプレッドシート構造のアップグレードテスト
+ */
+function testSpreadsheetUpgrade() {
+  Logger.log('=== スプレッドシート構造アップグレードテスト開始 ===\n');
+  
+  const sheet = getSheet(CONFIG.SHEET_NAMES.SCHEDULED);
+  if (!sheet) {
+    Logger.log('❌ エラー: 予約シートが取得できませんでした');
+    return;
+  }
+
+  // アップグレード前の状態を記録
+  const beforeLastCol = sheet.getLastColumn();
+  Logger.log(`アップグレード前の列数: ${beforeLastCol}列`);
+  
+  // 既存データの確認
+  const dataRange = sheet.getDataRange();
+  const rows = dataRange.getValues();
+  Logger.log(`データ行数: ${rows.length}行`);
+  
+  // アップグレード実行（実際には実行しない、ログのみ）
+  Logger.log('\n--- 以下のコマンドで実際にアップグレードできます ---');
+  Logger.log('upgradeSpreadsheetStructure();');
+  Logger.log('');
+  Logger.log('このコマンドは以下を実行します:');
+  Logger.log('1. 既存の「投稿日時、投稿内容、状態」を保持');
+  Logger.log('2. 「エラーメッセージ」列を追加（4列目）');
+  Logger.log('3. 「リトライ回数」列を追加（5列目）');
+  Logger.log('4. 既存のすべてのデータ行に新しい列を初期化');
+  
+  Logger.log('\n=== スプレッドシート構造アップグレードテスト完了 ===');
+}
+

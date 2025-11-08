@@ -25,11 +25,11 @@ const CONFIG = {
     PHOTO_LINKS: '写真リンク'
   },
   COLUMNS: {
-    SCHEDULED_TIME: 0,
-    TWEET_CONTENT: 1,
-    STATUS: 2,
-    ERROR_MESSAGE: 3,
-    RETRY_COUNT: 4
+    SCHEDULED_TIME: 0,  // 投稿日時（既存）
+    TWEET_CONTENT: 1,   // 投稿内容（既存）
+    STATUS: 2,          // 状態（既存）
+    ERROR_MESSAGE: 3,   // エラーメッセージ（新規追加）
+    RETRY_COUNT: 4      // リトライ回数（新規追加）
   },
   STATUS: {
     POSTED: '投稿済',
