@@ -1,7 +1,25 @@
 // ==================== 設定 ====================
+
+/**
+ * 環境変数を取得する関数
+ * スクリプトプロパティから機密情報を安全に取得します
+ */
+function getEnvironmentVariables() {
+  const scriptProperties = PropertiesService.getScriptProperties();
+  return {
+    CLIENT_ID: scriptProperties.getProperty('CLIENT_ID'),
+    CLIENT_SECRET: scriptProperties.getProperty('CLIENT_SECRET')
+  };
+}
+
 const CONFIG = {
-  CLIENT_ID: '{CLIENT_ID}',
-  CLIENT_SECRET: '{CLIENT_SECRET}',
+  // 環境変数から取得（スクリプトプロパティに設定が必要）
+  get CLIENT_ID() {
+    return PropertiesService.getScriptProperties().getProperty('CLIENT_ID') || '{CLIENT_ID}';
+  },
+  get CLIENT_SECRET() {
+    return PropertiesService.getScriptProperties().getProperty('CLIENT_SECRET') || '{CLIENT_SECRET}';
+  },
   SHEET_NAMES: {
     SCHEDULED: '予約',
     PHOTO_LINKS: '写真リンク'
@@ -382,6 +400,48 @@ function deleteExistingTriggers(functionName) {
 // ==================== テスト用関数 ====================
 
 /**
+ * 環境変数を設定する関数
+ * 初回セットアップ時に一度だけ実行してください
+ * 実行後は、この関数内の値を削除することを推奨します
+ */
+function setEnvironmentVariables() {
+  const scriptProperties = PropertiesService.getScriptProperties();
+  
+  // ⚠️ セキュリティ注意: 実際の値を設定した後、このコードからは削除してください
+  scriptProperties.setProperties({
+    'CLIENT_ID': 'your-actual-client-id-here',
+    'CLIENT_SECRET': 'your-actual-client-secret-here'
+  });
+  
+  Logger.log('✅ 環境変数を設定しました');
+  Logger.log('⚠️ セキュリティのため、この関数内の実際の値を削除してください');
+}
+
+/**
+ * 環境変数が正しく設定されているか確認する関数
+ */
+function checkEnvironmentVariables() {
+  const scriptProperties = PropertiesService.getScriptProperties();
+  const clientId = scriptProperties.getProperty('CLIENT_ID');
+  const clientSecret = scriptProperties.getProperty('CLIENT_SECRET');
+  
+  Logger.log('=== 環境変数チェック ===');
+  Logger.log('CLIENT_ID: ' + (clientId ? '✅ 設定済み (長さ: ' + clientId.length + ')' : '❌ 未設定'));
+  Logger.log('CLIENT_SECRET: ' + (clientSecret ? '✅ 設定済み (長さ: ' + clientSecret.length + ')' : '❌ 未設定'));
+  
+  if (!clientId || !clientSecret) {
+    Logger.log('');
+    Logger.log('⚠️ 環境変数が未設定です。以下の方法で設定してください:');
+    Logger.log('1. 左サイドバーの「⚙️ プロジェクトの設定」をクリック');
+    Logger.log('2. 「スクリプト プロパティ」セクションで値を追加');
+    Logger.log('   または');
+    Logger.log('3. setEnvironmentVariables() 関数を編集・実行');
+  }
+  
+  return clientId && clientSecret;
+}
+
+/**
  * scheduleTweetForFuture関数のテスト
  * スプレッドシートに新しい予約を追加します。
  */
@@ -421,6 +481,12 @@ function testGetRandomTweetContent() {
  */
 function testAll() {
   Logger.log('=== 全体テスト開始 ===');
+  
+  Logger.log('--- 環境変数チェック ---');
+  if (!checkEnvironmentVariables()) {
+    Logger.log('環境変数が未設定のため、テストを中断します');
+    return;
+  }
   
   Logger.log('--- 認証状態チェック ---');
   main();
