@@ -19,6 +19,8 @@ function postScheduledTweets() {
   }
 
   const now = new Date();
+  // マージンを考慮した時刻を計算（5分後まで投稿対象）
+  const nowWithMargin = new Date(now.getTime() + (CONFIG.TRIGGER_TIME.MARGIN_MINUTES * 60 * 1000));
   let postedCount = 0;
   let failedCount = 0;
   let skippedCount = 0;
@@ -36,8 +38,8 @@ function postScheduledTweets() {
       continue;
     }
 
-    // スケジュール時刻を過ぎており、まだ投稿されていない場合
-    if (new Date(scheduledTime) <= now && status !== CONFIG.STATUS.POSTED) {
+    // スケジュール時刻を過ぎており（マージン含む）、まだ投稿されていない場合
+    if (new Date(scheduledTime) <= nowWithMargin && status !== CONFIG.STATUS.POSTED) {
       
       // 最大リトライ回数を超えている場合はスキップ
       if (retryCount >= CONFIG.RETRY.MAX_ATTEMPTS) {
