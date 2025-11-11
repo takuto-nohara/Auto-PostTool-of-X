@@ -106,18 +106,24 @@ function rescheduleFailedTweets(startDaysFromNow = 1, intervalDays = 1) {
     Logger.log('【将来の投稿待ちツイートの調整】');
     
     let shiftedCount = 0;
+    let lastAdjustedTime = lastRescheduledTime;
+    
     for (const futureTweet of futureTweets) {
-      // 最後の再スケジュールツイートと衝突するかチェック
-      if (futureTweet.originalTime <= lastRescheduledTime) {
-        // 衝突する場合は、最後の再スケジュールツイートの後にずらす
-        const newScheduledTime = new Date(lastRescheduledTime);
-        newScheduledTime.setDate(newScheduledTime.getDate() + ((shiftedCount + 1) * intervalDays));
+      // 最後に調整されたツイートと衝突するかチェック
+      if (futureTweet.originalTime <= lastAdjustedTime) {
+        // 衝突する場合は、最後に調整されたツイートの後にずらす
+        const newScheduledTime = new Date(lastAdjustedTime);
+        newScheduledTime.setDate(newScheduledTime.getDate() + intervalDays);
         
         sheet.getRange(futureTweet.row, CONFIG.COLUMNS.SCHEDULED_TIME + 1).setValue(newScheduledTime);
         updateTweetStatus(sheet, futureTweet.row, CONFIG.STATUS.PENDING, '自動調整済み', 0);
         
         Logger.log(`  行 ${futureTweet.row}: ${formatDate(futureTweet.originalTime)} → ${formatDate(newScheduledTime)} (自動調整)`);
+        lastAdjustedTime = newScheduledTime;
         shiftedCount++;
+      } else {
+        // 衝突しない場合は、そのツイートの時刻を次の基準とする
+        lastAdjustedTime = futureTweet.originalTime;
       }
     }
     
@@ -269,12 +275,14 @@ function rescheduleFailedTweetsAdvanced(options = {}) {
     Logger.log('【将来の投稿待ちツイートの調整】');
     
     let shiftedCount = 0;
+    let lastAdjustedTime = lastRescheduledTime;
+    
     for (const futureTweet of futureTweets) {
-      // 最後の再スケジュールツイートと衝突するかチェック
-      if (futureTweet.originalTime <= lastRescheduledTime) {
-        // 衝突する場合は、最後の再スケジュールツイートの後にずらす
-        const newScheduledTime = new Date(lastRescheduledTime);
-        newScheduledTime.setDate(newScheduledTime.getDate() + ((shiftedCount + 1) * config.intervalDays));
+      // 最後に調整されたツイートと衝突するかチェック
+      if (futureTweet.originalTime <= lastAdjustedTime) {
+        // 衝突する場合は、最後に調整されたツイートの後にずらす
+        const newScheduledTime = new Date(lastAdjustedTime);
+        newScheduledTime.setDate(newScheduledTime.getDate() + config.intervalDays);
         
         // 元の時刻を保持するオプションが有効な場合
         if (config.sameTimeAsOriginal) {
@@ -287,7 +295,11 @@ function rescheduleFailedTweetsAdvanced(options = {}) {
         updateTweetStatus(sheet, futureTweet.row, CONFIG.STATUS.PENDING, '自動調整済み', 0);
         
         Logger.log(`  行 ${futureTweet.row}: ${formatDate(futureTweet.originalTime)} → ${formatDate(newScheduledTime)} (自動調整)`);
+        lastAdjustedTime = newScheduledTime;
         shiftedCount++;
+      } else {
+        // 衝突しない場合は、そのツイートの時刻を次の基準とする
+        lastAdjustedTime = futureTweet.originalTime;
       }
     }
     
