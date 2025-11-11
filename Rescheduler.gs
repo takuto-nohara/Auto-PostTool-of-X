@@ -3,6 +3,7 @@
 /**
  * 失敗したツイートのスケジュールを1日ずつずらして再配置する
  * 複数の失敗ツイートを適切な間隔で再投稿できるようにします
+ * TWEETS_PER_DAYとTRIGGER_TIMESの設定に基づいて、1日に複数の投稿をスケジュールします
  * 
  * ⚠️ 重要: この関数は失敗ツイートを再スケジュールする際、
  * その後の投稿待ちツイートもすべて自動的にずらします
@@ -21,8 +22,12 @@ function rescheduleFailedTweets(startDaysFromNow = 1, intervalDays = 1) {
   const failedTweets = [];
   const futureTweets = [];
   const now = new Date();
+  
+  const tweetsPerDay = CONFIG.TWEETS_PER_DAY || 1;
+  const triggerTimes = CONFIG.TRIGGER_TIMES || [CONFIG.TRIGGER_TIME];
 
   Logger.log('=== 失敗したツイートの再スケジュール開始 ===');
+  Logger.log(`設定: 1日あたり${tweetsPerDay}ツイート, トリガー時刻${triggerTimes.length}個`);
 
   // 失敗したツイートと将来の投稿待ちツイートを収集
   for (let i = 1; i < rows.length; i++) {
@@ -69,23 +74,31 @@ function rescheduleFailedTweets(startDaysFromNow = 1, intervalDays = 1) {
   // 将来のツイートを時刻でソート
   futureTweets.sort((a, b) => a.originalTime - b.originalTime);
 
-  // 基準時刻を設定（今日の同じ時刻）
+  // 基準時刻を設定
   const baseTime = new Date();
   baseTime.setDate(baseTime.getDate() + startDaysFromNow);
-  baseTime.setHours(CONFIG.TRIGGER_TIME.HOUR);
-  baseTime.setMinutes(CONFIG.TRIGGER_TIME.MINUTE);
+  baseTime.setHours(0);
+  baseTime.setMinutes(0);
   baseTime.setSeconds(0);
   baseTime.setMilliseconds(0);
 
   Logger.log('');
   Logger.log('【失敗ツイートの再スケジュール】');
 
-  // 各失敗ツイートを1日ずつずらして再スケジュール
+  // 各失敗ツイートを再スケジュール（1日に複数ツイート対応）
   const rescheduledTweets = [];
   for (let i = 0; i < failedTweets.length; i++) {
     const tweet = failedTweets[i];
+    
+    // 何日目の何番目のツイートかを計算
+    const dayOffset = Math.floor(i / tweetsPerDay) * intervalDays;
+    const tweetIndexInDay = i % tweetsPerDay;
+    const triggerTime = triggerTimes[tweetIndexInDay % triggerTimes.length];
+    
     const newScheduledTime = new Date(baseTime);
-    newScheduledTime.setDate(newScheduledTime.getDate() + (i * intervalDays));
+    newScheduledTime.setDate(newScheduledTime.getDate() + dayOffset);
+    newScheduledTime.setHours(triggerTime.HOUR);
+    newScheduledTime.setMinutes(triggerTime.MINUTE);
 
     // スケジュール時刻を更新
     sheet.getRange(tweet.row, CONFIG.COLUMNS.SCHEDULED_TIME + 1).setValue(newScheduledTime);
@@ -106,14 +119,19 @@ function rescheduleFailedTweets(startDaysFromNow = 1, intervalDays = 1) {
     Logger.log('【将来の投稿待ちツイートの調整】');
     
     let shiftedCount = 0;
-    let lastAdjustedTime = lastRescheduledTime;
+    let lastAdjustedTime = rescheduledTweets[rescheduledTweets.length - 1];
+    let nextTweetIndexInDay = failedTweets.length % tweetsPerDay;
+    let currentDayOffset = Math.floor(failedTweets.length / tweetsPerDay) * intervalDays;
     
     for (const futureTweet of futureTweets) {
       // 最後に調整されたツイートと衝突するかチェック
       if (futureTweet.originalTime <= lastAdjustedTime) {
-        // 衝突する場合は、最後に調整されたツイートの後にずらす
-        const newScheduledTime = new Date(lastAdjustedTime);
-        newScheduledTime.setDate(newScheduledTime.getDate() + intervalDays);
+        // 衝突する場合は、次の利用可能な時刻にずらす
+        const triggerTime = triggerTimes[nextTweetIndexInDay % triggerTimes.length];
+        const newScheduledTime = new Date(baseTime);
+        newScheduledTime.setDate(newScheduledTime.getDate() + currentDayOffset);
+        newScheduledTime.setHours(triggerTime.HOUR);
+        newScheduledTime.setMinutes(triggerTime.MINUTE);
         
         sheet.getRange(futureTweet.row, CONFIG.COLUMNS.SCHEDULED_TIME + 1).setValue(newScheduledTime);
         updateTweetStatus(sheet, futureTweet.row, CONFIG.STATUS.PENDING, '自動調整済み', 0);
@@ -121,9 +139,35 @@ function rescheduleFailedTweets(startDaysFromNow = 1, intervalDays = 1) {
         Logger.log(`  行 ${futureTweet.row}: ${formatDate(futureTweet.originalTime)} → ${formatDate(newScheduledTime)} (自動調整)`);
         lastAdjustedTime = newScheduledTime;
         shiftedCount++;
+        
+        // 次のツイートの位置を計算
+        nextTweetIndexInDay++;
+        if (nextTweetIndexInDay >= tweetsPerDay) {
+          nextTweetIndexInDay = 0;
+          currentDayOffset += intervalDays;
+        }
       } else {
         // 衝突しない場合は、そのツイートの時刻を次の基準とする
         lastAdjustedTime = futureTweet.originalTime;
+        // 次のツイートの位置をリセット（元のスケジュールに戻る）
+        const futureTweetDate = new Date(futureTweet.originalTime);
+        futureTweetDate.setHours(0, 0, 0, 0);
+        const daysSinceBase = Math.floor((futureTweetDate - new Date(baseTime.getFullYear(), baseTime.getMonth(), baseTime.getDate())) / (24 * 60 * 60 * 1000));
+        currentDayOffset = Math.max(currentDayOffset, daysSinceBase);
+        
+        // 当日の何番目のツイートかを推定
+        const hour = futureTweet.originalTime.getHours();
+        const minute = futureTweet.originalTime.getMinutes();
+        nextTweetIndexInDay = 0;
+        for (let i = 0; i < triggerTimes.length; i++) {
+          if (triggerTimes[i].HOUR === hour && triggerTimes[i].MINUTE === minute) {
+            nextTweetIndexInDay = (i + 1) % tweetsPerDay;
+            break;
+          }
+        }
+        if (nextTweetIndexInDay === 0 && tweetsPerDay > 0) {
+          currentDayOffset += intervalDays;
+        }
       }
     }
     

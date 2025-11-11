@@ -125,6 +125,7 @@ function getRandomTweetContent(linksData) {
 
 /**
  * 指定年数後にランダムで選んだツイートを予約する関数
+ * TWEETS_PER_DAYとTRIGGER_TIMESの設定に基づいて、同じ日に複数の予約を作成します
  * @param {Date} scheduledTime - 元のスケジュール時間
  * @param {string} link - リンク詳細
  */
@@ -145,4 +146,87 @@ function scheduleTweetForFuture(scheduledTime, link) {
   
   sheet.appendRow(newRow);
   Logger.log(`新しい予約を追加しました: ${futureDate}`);
+}
+
+/**
+ * 指定した日付から、1日あたりの投稿数とトリガー時刻に基づいて
+ * 複数日分のスケジュールを一括作成する関数
+ * @param {Date} startDate - 開始日
+ * @param {number} daysToSchedule - スケジュールする日数
+ */
+function createBulkSchedule(startDate, daysToSchedule) {
+  const sheet = getSheet(CONFIG.SHEET_NAMES.SCHEDULED);
+  const linksSheet = getSheet(CONFIG.SHEET_NAMES.PHOTO_LINKS);
+  
+  if (!sheet || !linksSheet) {
+    Logger.log('エラー: シートが取得できませんでした');
+    return;
+  }
+
+  const links = getSpreadsheetDataLinks();
+  if (links.length === 0) {
+    Logger.log('エラー: 写真リンクシートにデータがありません');
+    return;
+  }
+
+  const tweetsPerDay = CONFIG.TWEETS_PER_DAY || 1;
+  const triggerTimes = CONFIG.TRIGGER_TIMES || [CONFIG.TRIGGER_TIME];
+  
+  // TWEETS_PER_DAYの数だけトリガー時刻を使用
+  const usedTriggerTimes = triggerTimes.slice(0, tweetsPerDay);
+  
+  if (usedTriggerTimes.length < tweetsPerDay) {
+    Logger.log(`警告: TWEETS_PER_DAY(${tweetsPerDay})に対してTRIGGER_TIMESが不足しています(${triggerTimes.length}個)`);
+    Logger.log(`     利用可能な${usedTriggerTimes.length}個のトリガー時刻のみを使用します`);
+  }
+
+  Logger.log('=== 一括スケジュール作成開始 ===');
+  Logger.log(`開始日: ${formatDate(startDate)}`);
+  Logger.log(`日数: ${daysToSchedule}日`);
+  Logger.log(`1日あたりのツイート数: ${tweetsPerDay}件`);
+  Logger.log(`使用するトリガー時刻: ${usedTriggerTimes.length}個`);
+  Logger.log('');
+
+  let totalScheduled = 0;
+  const newRows = [];
+
+  for (let day = 0; day < daysToSchedule; day++) {
+    const currentDate = new Date(startDate);
+    currentDate.setDate(currentDate.getDate() + day);
+
+    for (let tweetIndex = 0; tweetIndex < usedTriggerTimes.length; tweetIndex++) {
+      const triggerTime = usedTriggerTimes[tweetIndex];
+      const scheduledTime = new Date(currentDate);
+      scheduledTime.setHours(triggerTime.HOUR);
+      scheduledTime.setMinutes(triggerTime.MINUTE);
+      scheduledTime.setSeconds(0);
+      scheduledTime.setMilliseconds(0);
+
+      const randomTweet = getRandomTweetContent(links);
+      if (randomTweet) {
+        newRows.push([
+          scheduledTime,
+          CONFIG.TWEET_PREFIX + randomTweet,
+          ''
+        ]);
+        totalScheduled++;
+      }
+    }
+
+    if ((day + 1) % 100 === 0) {
+      Logger.log(`進捗: ${day + 1}/${daysToSchedule}日分作成完了`);
+    }
+  }
+
+  // 一括でスプレッドシートに追加
+  if (newRows.length > 0) {
+    const startRow = sheet.getLastRow() + 1;
+    sheet.getRange(startRow, 1, newRows.length, newRows[0].length).setValues(newRows);
+    Logger.log('');
+    Logger.log('=== 一括スケジュール作成完了 ===');
+    Logger.log(`合計 ${totalScheduled}件のツイートをスケジュールしました`);
+    Logger.log(`期間: ${formatDate(startDate)} ～ ${formatDate(new Date(startDate.getTime() + (daysToSchedule - 1) * 24 * 60 * 60 * 1000))}`);
+  } else {
+    Logger.log('エラー: スケジュールを作成できませんでした');
+  }
 }

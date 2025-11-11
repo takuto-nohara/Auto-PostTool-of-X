@@ -50,9 +50,14 @@ const CONFIG = {
   },
   TWEET_PREFIX: 'チャレラ！開けロイト市警だ！',
   YEARS_TO_SCHEDULE: 14,
-  TRIGGER_TIME: {
+  TWEETS_PER_DAY: 1,             // 1日あたりのツイート数
+  TRIGGER_TIMES: [               // 各投稿のトリガー時刻（時:分）
+    { HOUR: 19, MINUTE: 29 }
+  ],
+  TRIGGER_TIME: {                // 後方互換性のため残す（非推奨）
     HOUR: 19,
     MINUTE: 29,
     MARGIN_MINUTES: 5          // トリガー設定時の余裕時間（分）
-  }
+  },
+  MARGIN_MINUTES: 5              // トリガー設定時の余裕時間（分）
 };

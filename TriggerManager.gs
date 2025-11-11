@@ -2,6 +2,7 @@
 
 /**
  * 指定した時間にツイートを送信するためのトリガーを作成します。
+ * TRIGGER_TIMESの設定に基づいて、1日に複数のトリガーを作成できます。
  * 現在時刻が投稿指定時刻よりも前の場合は当日、後の場合は翌日の指定時刻に実行されるトリガーを設定します。
  */
 function createTrigger() {
@@ -28,61 +29,73 @@ function createTrigger() {
     // ツイート投稿を実行
     postScheduledTweets();
 
-    // 次回実行時刻を計算
+    // 複数のトリガー時刻に対応
     const now = new Date();
-    const triggerDay = new Date();
+    const marginMinutes = CONFIG.MARGIN_MINUTES || 5;
+    const triggerTimes = CONFIG.TRIGGER_TIMES || [CONFIG.TRIGGER_TIME];
     
-    // 今日の指定時刻を設定
-    triggerDay.setHours(CONFIG.TRIGGER_TIME.HOUR);
-    triggerDay.setMinutes(CONFIG.TRIGGER_TIME.MINUTE);
-    triggerDay.setSeconds(0);
-    triggerDay.setMilliseconds(0);
+    Logger.log(`=== 次回トリガー設定 (${triggerTimes.length}個) ===`);
     
-    // マージンを考慮した判定用の時刻（指定時刻のN分前）
-    const marginMinutes = CONFIG.TRIGGER_TIME.MARGIN_MINUTES || 5;
-    const triggerDayWithMargin = new Date(triggerDay);
-    triggerDayWithMargin.setMinutes(triggerDayWithMargin.getMinutes() - marginMinutes);
-    
-    // 判定ロジック:
-    // 1. 現在時刻が指定時刻を過ぎている → 翌日に設定
-    // 2. 現在時刻がマージン時刻より前 → 当日に設定
-    // 3. マージン時刻～指定時刻の間 → 翌日に設定（安全のため）
-    
-    if (now > triggerDay) {
-      // 指定時刻を過ぎている → 翌日
-      triggerDay.setDate(triggerDay.getDate() + 1);
-      const timePassed = now - new Date(now.getFullYear(), now.getMonth(), now.getDate(), CONFIG.TRIGGER_TIME.HOUR, CONFIG.TRIGGER_TIME.MINUTE);
-      const timePassedStr = formatTimeDuration(timePassed);
-      Logger.log(`📅 投稿時刻を${timePassedStr}過ぎているため、翌日にトリガーを設定します`);
-    } else if (now < triggerDayWithMargin) {
-      // マージン時刻より前 → 当日
+    triggerTimes.forEach((triggerConfig, index) => {
+      const triggerDay = new Date();
+      
+      // 今日の指定時刻を設定
+      triggerDay.setHours(triggerConfig.HOUR);
+      triggerDay.setMinutes(triggerConfig.MINUTE);
+      triggerDay.setSeconds(0);
+      triggerDay.setMilliseconds(0);
+      
+      // マージンを考慮した判定用の時刻（指定時刻のN分前）
+      const triggerDayWithMargin = new Date(triggerDay);
+      triggerDayWithMargin.setMinutes(triggerDayWithMargin.getMinutes() - marginMinutes);
+      
+      // 判定ロジック:
+      // 1. 現在時刻が指定時刻を過ぎている → 翌日に設定
+      // 2. 現在時刻がマージン時刻より前 → 当日に設定
+      // 3. マージン時刻～指定時刻の間 → 翌日に設定（安全のため）
+      
+      let logMessage = `トリガー${index + 1} (${triggerConfig.HOUR}:${String(triggerConfig.MINUTE).padStart(2, '0')}): `;
+      
+      if (now > triggerDay) {
+        // 指定時刻を過ぎている → 翌日
+        triggerDay.setDate(triggerDay.getDate() + 1);
+        const timePassed = now - new Date(now.getFullYear(), now.getMonth(), now.getDate(), triggerConfig.HOUR, triggerConfig.MINUTE);
+        const timePassedStr = formatTimeDuration(timePassed);
+        logMessage += `投稿時刻を${timePassedStr}過ぎているため、翌日に設定`;
+      } else if (now < triggerDayWithMargin) {
+        // マージン時刻より前 → 当日
+        const timeUntilTrigger = triggerDay - now;
+        const timeUntilStr = formatTimeDuration(timeUntilTrigger);
+        logMessage += `投稿時刻まで${timeUntilStr}あるため、本日に設定`;
+      } else {
+        // マージン時刻～指定時刻の間 → 翌日（安全のため）
+        triggerDay.setDate(triggerDay.getDate() + 1);
+        const timeUntilOriginal = new Date(now.getFullYear(), now.getMonth(), now.getDate(), triggerConfig.HOUR, triggerConfig.MINUTE) - now;
+        const timeUntilStr = formatTimeDuration(timeUntilOriginal);
+        logMessage += `投稿時刻まで${timeUntilStr}（マージン${marginMinutes}分以内）のため、翌日に設定`;
+      }
+
+      // 新しいトリガーを作成
+      ScriptApp.newTrigger('createTrigger')
+        .timeBased()
+        .at(triggerDay)
+        .create();
+
+      Logger.log(logMessage);
+      Logger.log(`  次回実行予定: ${triggerDay.toString()}`);
+      
+      // 実行までの時間を計算して表示
       const timeUntilTrigger = triggerDay - now;
       const timeUntilStr = formatTimeDuration(timeUntilTrigger);
-      Logger.log(`📅 投稿時刻まで${timeUntilStr}あるため、本日にトリガーを設定します`);
-    } else {
-      // マージン時刻～指定時刻の間 → 翌日（安全のため）
-      triggerDay.setDate(triggerDay.getDate() + 1);
-      const timeUntilOriginal = new Date(now.getFullYear(), now.getMonth(), now.getDate(), CONFIG.TRIGGER_TIME.HOUR, CONFIG.TRIGGER_TIME.MINUTE) - now;
-      const timeUntilStr = formatTimeDuration(timeUntilOriginal);
-      Logger.log(`📅 投稿時刻まで${timeUntilStr}（マージン${marginMinutes}分以内）のため、翌日にトリガーを設定します`);
-    }
-
-    // 新しいトリガーを作成
-    ScriptApp.newTrigger('createTrigger')
-      .timeBased()
-      .at(triggerDay)
-      .create();
+      Logger.log(`  ⏰ 次回実行まで: ${timeUntilStr}`);
+    });
 
     // トリガー設定日時を記録
     const scriptProperties = PropertiesService.getScriptProperties();
-    scriptProperties.setProperty('TriggerSetAt', triggerDay.toString());
-
-    Logger.log(`次回実行予定: ${triggerDay.toString()}`);
+    scriptProperties.setProperty('TriggerSetAt', new Date().toString());
+    scriptProperties.setProperty('TriggerCount', triggerTimes.length.toString());
     
-    // 実行までの時間を計算して表示
-    const timeUntilTrigger = triggerDay - now;
-    const timeUntilStr = formatTimeDuration(timeUntilTrigger);
-    Logger.log(`⏰ 次回実行まで: ${timeUntilStr}`);
+    Logger.log(`=== トリガー設定完了 (合計${triggerTimes.length}個) ===`);
   } catch (error) {
     Logger.log(`トリガー作成中にエラーが発生しました: ${error.message}`);
   }
