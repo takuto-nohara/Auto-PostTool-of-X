@@ -22,7 +22,8 @@ function createTrigger() {
       Logger.log('');
     } else {
       Logger.log('--- 投稿漏れをチェック中（自動リスケジュール無効）---');
-      detectAndMarkMissedTweets();
+      // 猶予時間は長めに設定（投稿処理が実行される前に失敗扱いしないため）
+      detectAndMarkMissedTweets(30);
       Logger.log('');
     }
 

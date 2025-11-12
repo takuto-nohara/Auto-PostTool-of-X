@@ -34,7 +34,8 @@ function autoDetectAndReschedule(options = {}) {
 
   // ステップ1: 投稿漏れを検出
   Logger.log('【ステップ1】投稿漏れの検出');
-  const missedCount = detectAndMarkMissedTweets();
+  // 猶予時間は長めに設定（投稿処理が実行される前に失敗扱いしないため）
+  const missedCount = detectAndMarkMissedTweets(30);
   result.missedCount = missedCount;
   Logger.log('');
 

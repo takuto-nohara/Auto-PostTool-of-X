@@ -19,11 +19,17 @@ function postScheduledTweets() {
   }
 
   const now = new Date();
-  // マージンを考慮した時刻を計算（5分後まで投稿対象）
-  const nowWithMargin = new Date(now.getTime() + (CONFIG.TRIGGER_TIME.MARGIN_MINUTES * 60 * 1000));
+  // マージンを考慮した時刻を計算（マージン分だけ未来の投稿も対象に含める）
+  const marginMinutes = CONFIG.MARGIN_MINUTES || CONFIG.TRIGGER_TIME.MARGIN_MINUTES || 5;
+  const nowWithMargin = new Date(now.getTime() + (marginMinutes * 60 * 1000));
+  
   let postedCount = 0;
   let failedCount = 0;
   let skippedCount = 0;
+
+  Logger.log(`現在時刻: ${formatDate(now)}`);
+  Logger.log(`マージン適用時刻: ${formatDate(nowWithMargin)} (${marginMinutes}分後まで)`);
+  Logger.log('');
 
   // ヘッダー行をスキップして各行を処理
   for (let i = 1; i < rows.length; i++) {
@@ -38,8 +44,11 @@ function postScheduledTweets() {
       continue;
     }
 
+    const scheduleDate = new Date(scheduledTime);
+
     // スケジュール時刻を過ぎており（マージン含む）、まだ投稿されていない場合
-    if (new Date(scheduledTime) <= nowWithMargin && status !== CONFIG.STATUS.POSTED) {
+    // 過去の投稿はすべて対象、未来の投稿はマージン分まで対象
+    if (scheduleDate <= nowWithMargin && status !== CONFIG.STATUS.POSTED) {
       
       // 最大リトライ回数を超えている場合はスキップ
       if (retryCount >= CONFIG.RETRY.MAX_ATTEMPTS) {
@@ -63,6 +72,7 @@ function postScheduledTweets() {
         // 投稿成功
         updateTweetStatus(sheet, i + 1, CONFIG.STATUS.POSTED, '投稿成功', 0);
         postedCount++;
+        Logger.log(`✅ 行 ${i + 1}: 投稿成功 (予定: ${formatDate(scheduleDate)})`);
 
         // 新しい予約を作成
         const randomTweet = getRandomTweetContent(links);
@@ -79,12 +89,13 @@ function postScheduledTweets() {
         updateTweetStatus(sheet, i + 1, newStatus, result.error, newRetryCount);
         failedCount++;
         
-        Logger.log(`行 ${i + 1}: 投稿失敗 (${newRetryCount}/${CONFIG.RETRY.MAX_ATTEMPTS}回目) - ${result.error}`);
+        Logger.log(`❌ 行 ${i + 1}: 投稿失敗 (${newRetryCount}/${CONFIG.RETRY.MAX_ATTEMPTS}回目) - ${result.error}`);
       }
     }
   }
 
   // 結果のサマリーをログ出力
+  Logger.log('');
   Logger.log('=== 投稿処理完了 ===');
   Logger.log(`成功: ${postedCount}件`);
   Logger.log(`失敗: ${failedCount}件`);

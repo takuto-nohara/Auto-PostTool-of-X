@@ -3,8 +3,10 @@
 /**
  * スケジュール時刻を過ぎているのにステータスが空白のツイートを失敗として検出する
  * 自動的に「投稿失敗」ステータスを付与します
+ * 
+ * @param {number} graceMinutes - 猶予時間（分）。この時間内のものは投稿漏れとしない（デフォルト: 10分）
  */
-function detectAndMarkMissedTweets() {
+function detectAndMarkMissedTweets(graceMinutes = 10) {
   const sheet = getSheet(CONFIG.SHEET_NAMES.SCHEDULED);
   if (!sheet) {
     Logger.log('エラー: 予約シートが取得できませんでした');
@@ -13,20 +15,23 @@ function detectAndMarkMissedTweets() {
 
   const rows = sheet.getDataRange().getValues();
   const now = new Date();
+  // 猶予期間を設定（マージン + 追加の猶予時間）
+  const graceTime = new Date(now.getTime() - (graceMinutes * 60 * 1000));
   let missedCount = 0;
 
   Logger.log('=== 投稿漏れの検出を開始 ===');
   Logger.log(`現在時刻: ${formatDate(now)}`);
+  Logger.log(`猶予期間: ${graceMinutes}分（${formatDate(graceTime)}より前が対象）`);
 
   for (let i = 1; i < rows.length; i++) {
     const scheduledTime = rows[i][CONFIG.COLUMNS.SCHEDULED_TIME];
     const tweetContent = rows[i][CONFIG.COLUMNS.TWEET_CONTENT];
     const status = rows[i][CONFIG.COLUMNS.STATUS];
 
-    // スケジュール時刻が設定されており、内容があり、現在時刻を過ぎており、ステータスが空白の場合
+    // スケジュール時刻が設定されており、内容があり、猶予期間を過ぎており、ステータスが空白の場合
     if (scheduledTime && 
         tweetContent && 
-        new Date(scheduledTime) < now && 
+        new Date(scheduledTime) < graceTime && 
         (!status || status === '' || status === CONFIG.STATUS.PENDING)) {
       
       const timeDiff = now - new Date(scheduledTime);
